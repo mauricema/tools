@@ -1,0 +1,518 @@
+## @file
+#
+#  Slim Bootloader CFGDATA Default File.
+#
+#  Copyright (c) 2020, Intel Corporation. All rights reserved.<BR>
+#  SPDX-License-Identifier: BSD-2-Clause-Patent
+#
+##
+
+
+template:
+  CFGHDR_TMPL: >
+    - CfgHeader    :
+        length       : 0x04
+        value        : {0x01:2b, ((_LENGTH_$(1)_)/4):10b, $(3):4b, $(4):4b, $(2):12b}
+    - CondValue    :
+        length       : 0x04
+        value        : 0x00000000
+
+
+  GPIO_TMPL: >
+    - $ACTION      :
+        page         : GIO_$(1):GIO:"GPIO $(1)"
+    - $ACTION      :
+        page         : GIO_$(1)
+    - GpioConfPad0_$(1) :
+      - $STRUCT      :
+          name         : GPIO $(1) PAD 0
+          type         : EditNum, HEX, (0x00000000,0xFFFFFFFF)
+          help         : >
+                         GPIO $(1) PAD 0
+          marker       : GPIO_DATA_$(1)
+          length       : 0x04
+          value        : $(2)
+      - GPIOTxState  :
+          name         : GPIOTxState
+          type         : Combo
+          option       : 0:0, 1:1
+          help         : >
+                         GPIO TX State
+          condition    : $GPIO_CFG_DATA.GpioConfPad1_$(1).GPIOSkip == 0
+          length       : 1b
+      - GPIORxState  :
+          name         : GPIORxState
+          type         : Reserved
+          length       : 1b
+      - Reserved     :
+          name         : Reserved
+          type         : Reserved
+          length       : 28b
+      - GPIODirection :
+          name         : Direction
+          type         : Combo
+          option       : 0x0:DirIn, 0x1:DirOut, 0x2:DirInOut, 0x3:DirNone
+          condition    : $GPIO_CFG_DATA.GpioConfPad1_$(1).GPIOSkip == 0
+          help         : >
+                         GPIO direction
+          length       : 2b
+    - GpioConfPad1_$(1) :
+      - $STRUCT      :
+          name         : GPIO $(1) PAD 1
+          type         : EditNum, HEX, (0x00000000,0xFFFFFFFF)
+          help         : >
+                         GPIO $(1) PAD 1
+          length       : 0x04
+          value        : $(3)
+      - GPIOPin      :
+          name         : GPIO Pin ID
+          type         : Reserved
+          length       : 16b
+      - Reserved     :
+          name         : Reserved
+          type         : Reserved
+          length       : 15b
+      - GPIOSkip     :
+          name         : GPIO Skip
+          type         : Combo
+          option       : $EN_DIS
+          help         : >
+                         ENABLE- Skip GPIO PAD programming (keep the defaults). DISABLE- Program GPIO PAD configuration.
+          order        : 0000.0000
+          length       : 1b
+
+
+
+
+  BOOT_OPTION_TMPL: >
+    - $ACTION      :
+        page         : OS_$(1):OS:"Boot Option $(1)"
+    - $ACTION      :
+        page         : OS_$(1)
+    - BOOT_OPTION_CFG_DATA_$(1) :
+      - !expand { CFGHDR_TMPL : [ BOOT_OPTION_CFG_DATA_$(1), 0x05$(1), 0, 0 ] }
+      - ImageType_$(1) :
+          name         : Image Type
+          type         : Combo
+          option       : 0:Default, 1:Android, 2:ClearLinux, 3:Acrn, 4:Fastboot, 0xFE:Addendum, 0xFF:Not used
+          help         : >
+                         Specify boot image type.
+                         Specially 'Addendum' indicates this option is not a standalone boot option. Instead, it provides additional information for the previous boot option.
+                         'Not used' indicates this option will be ignored.
+          length       : 0x01
+          value        : $(2)
+      - BootFlags_$(1) :
+          name         : Boot Flags
+          type         : Combo
+          option       : 0:Normal, 1:A/B support, 2:Crash OS, 4:Trusty support, 5:Trusty and A/B support, 16:Mender support
+          help         : >
+                         Specify boot flags (options)
+          condition    : $BOOT_OPTION_CFG_DATA_$(1).ImageType_$(1) < 0xFE
+          length       : 0x01
+          value        : $(3)
+      - Reserved_$(1) :
+          length       : 0x01
+          value        : 0x5A
+      - BootDeviceType_$(1) :
+          name         : Boot Device type
+          type         : Combo
+          option       : 0:SATA, 1:SD, 2:EMMC, 3:UFS, 4:SPI, 5:USB, 6:NVME, 7:MEMORY
+          help         : >
+                         Specify boot device type
+          order        : 0000.0000
+          condition    : $BOOT_OPTION_CFG_DATA_$(1).ImageType_$(1) < 0xFE
+          length       : 0x01
+          value        : $(4)
+      - BootDeviceInstance_$(1) :
+          name         : Boot Device instance
+          type         : Combo
+          option       : 0:Device 0, 1:Device 1, 2:Device 2, 3:Device 3
+          help         : >
+                         Specify boot device instance when then are multiple instances
+          order        : 0000.0000
+          condition    : $BOOT_OPTION_CFG_DATA_$(1).ImageType_$(1) < 0xFE
+          length       : 0x01
+          value        : $(5)
+      - HwPart_$(1)  :
+          name         : Hardware Partition
+          type         : Combo
+          option       : 0:User Partition, 1:Boot Partition 1, 2:Boot Partition 2, 3:Boot Partition 3, 4:Boot Partition 4, 5:Boot Partition 5, 6:Boot Partition 6, 7:Boot Partition 7, 255:SATA Auto 255
+          help         : >
+                         Specify hardware partition number.
+                         If boot device type is SPI, the hardware partition refers to SPI flash region- 0-Descriptor, 1-BIOS, 2-ME, 3-GbE, 4-PDR Regions.
+                         If boot device type is SATA, the hardware partition refers to the SATA port number on the system; setting to 255 uses the first detected SATA device.
+                         If boot device type is USB, the hardware partition refers to the order in which the USB block devices are detected when multiple USB block devices are connected.
+          condition    : $BOOT_OPTION_CFG_DATA_$(1).ImageType_$(1) < 0xFE
+          length       : 0x01
+          value        : $(6)
+      - SwPart_$(1)  :
+          name         : Software Partition
+          type         : EditNum, DEC, (0,255)
+          help         : >
+                         Specify software partition number. A value of 255 indicates raw booting via the absolute LBA instead of a relative LBA
+                         (e.g. relative to a software partition's starting LBA).
+          condition    : $BOOT_OPTION_CFG_DATA_$(1).ImageType_$(1) < 0xFF
+          length       : 0x01
+          value        : $(7)
+      - FsType_$(1)  :
+          name         : File System Type
+          type         : Combo
+          option       : 0:FAT, 1:EXT2, 2:AUTO, 3:RAW
+          help         : >
+                         Image is loaded from file system instead of raw data
+          condition    : $BOOT_OPTION_CFG_DATA_$(1).ImageType_$(1) < 0xFE
+          length       : 0x01
+          value        : $(8)
+      - BootImage_$(1) :
+          name         : Normal OS info or LBA address
+          type         : EditText
+          help         : >
+                         Specify file name of normal OS or LBA address (16-byte max length).
+                         For LBA address, please use HEX prefix "#0x". EX- #0x12345678
+          condition    : $BOOT_OPTION_CFG_DATA_$(1).ImageType_$(1) < 0xFF
+          length       : 0x10
+          value        : $(9)
+
+
+
+configs:
+  - $ACTION      :
+      page         : PLT::"Platform", MEM::"Memory Settings", SIL::"Silicon Settings", GEN::"General Settings", GIO::"GPIO Settings", OS::"OS Boot Options"
+  - Signature    :
+      length       : 0x04
+      value        : {'CFGD'}
+  - HeaderLength :
+      length       : 0x01
+      value        : 0x10
+  - Reserved     :
+      length       : 0x03
+      value        : {0,0,0}
+  - UsedLength   :
+      length       : 0x04
+      value        : _LENGTH_
+  - TotalLength  :
+      length       : 0x04
+      value        : 0x1000
+
+
+  - $ACTION      :
+      page         : PLT
+  - PLATFORMID_CFG_DATA :
+    - !expand { CFGHDR_TMPL : [ PLATFORMID_CFG_DATA, 0x0F0, 0, 0 ] }
+    - PlatformId   :
+        name         : Platform ID
+        type         : Combo
+        option       : >
+                       0:Board  0,  1:Board  1,  2:Board  2,  3:Board  3,  4:Board  4,  5:Board  5,  6:Board  6,  7:Board  7,
+                       8:Board  8,  9:Board  9, 10:Board 10, 11:Board 11, 12:Board 12, 13:Board 13, 14:Board 14, 15:Board 15,
+                       16:Board 16, 17:Board 17, 18:Board 18, 19:Board 19, 20:Board 20, 21:Board 21, 22:Board 22, 23:Board 23,
+                       24:Board 24, 25:Board 25, 26:Board 26, 27:Board 27, 28:Board 28, 29:Board 29, 30:Board 30, 31:Board 31
+        help         : >
+                       Select platform ID
+        length       : 0x02
+        value        : 0x0000
+    - PseRsvd      :
+        length       : 0x02
+        value        : 0x0000
+
+  - $ACTION      :
+      page         : PLT
+  - PLAT_NAME_CFG_DATA :
+    - !expand { CFGHDR_TMPL : [ PLAT_NAME_CFG_DATA, 0x070, 0, 0 ] }
+    - PlatformName :
+        name         : Platform Name
+        type         : EditText
+        help         : >
+                       Specify the platform name, a maximum of 8 characters
+        length       : 0x8
+        value        : ' '
+
+
+  - PLATFORM_CFG_DATA :
+    - !expand { CFGHDR_TMPL : [ PLATFORM_CFG_DATA, 0x280, 0, 0 ] }
+    - PlatTest     :
+        name         : Platform Test Data
+        type         : EditText
+        help         : >
+                       Specify platform test data string
+        length       : 0x04
+        value        : ''
+
+  - $ACTION      :
+      page         : MEM
+  - MEMORY_CFG_DATA :
+    - !expand { CFGHDR_TMPL : [ MEMORY_CFG_DATA, 0x180, 0, 0 ] }
+    - MemTest1     :
+        name         : Memory Test 1
+        type         : EditNum, HEX, (0x00000000,0xFFFFFFFF)
+        help         : >
+                       Memory Test 1
+        length       : 0x04
+        value        : 0x11223344
+    - MemTest2     :
+        name         : Memory Test 9
+        type         : EditNum, HEX, (0x00000000,0xFFFFFFFF)
+        help         : >
+                       Memory Test 9
+        length       : 0x04
+        value        : 0x11223346
+
+  - $ACTION      :
+      page         : SIL
+  - SILICON_CFG_DATA :
+    - !expand { CFGHDR_TMPL : [ SILICON_CFG_DATA, 0x200, 0, 0 ] }
+    - SiliconTest1 :
+        name         : Silicon Test 1
+        type         : EditNum, HEX, (0x00000000,0xFFFFFFFF)
+        help         : >
+                       Silicon Test 1
+        length       : 0x04
+        value        : 0x11223347
+    - SiliconTest2 :
+        name         : Silicon Test 2
+        type         : Table
+        option       :  0:1:HEX, 1:1:HEX, 2:1:HEX, 3:1:HEX
+        help         : >
+                       Silicon Test 2 to show BYTE table configuration
+        length       : 0x04
+        value        : 0x04030201
+    - SiliconTest3 :
+        name         : Silicon Test 3
+        type         : Table
+        option       :  0:2:HEX, 1:2:HEX
+        help         : >
+                       Silicon Test 3 to show UINT16 table configuration
+        struct       : UINT16
+        length       : 0x08
+        value        : {0:0W, 0x1111, 0x2222, 0x3333, 0x4444}
+    - SiliconTest4 :
+        name         : Silicon Test 4
+        type         : Table
+        option       :  0:4:HEX, 1:4:HEX
+        help         : >
+                       Silicon Test 4 to show UINT32 table configuration
+        struct       : UINT32
+        length       : 0x08
+        value        : {0:0D, 0x11112222, 0x33334444}
+
+  - $ACTION      :
+      page         : GEN
+
+
+  - $ACTION      :
+      page         : GEN
+  - GEN_CFG_DATA :
+    - !expand { CFGHDR_TMPL : [ GEN_CFG_DATA, 0x010, 0, 0 ] }
+    - DebugPrintLevel :
+        name         : Debug Print Level
+        type         : EditNum, HEX, (0x00000000,0xFFFFFFFF)
+        help         : >
+                       Specify debug print level
+        length       : 0x04
+        value        : 0x8000004F
+    - PayloadId    :
+        name         : Payload ID
+        type         : EditText
+        help         : >
+                       Specify payload ID string. Empty will boot default payload. Otherwise, boot specified payload ID in multi-payload binary.
+        length       : 0x04
+        value        : ''
+    - OsCrashMemorySize :
+        name         : OS Crash Memory Size
+        type         : Combo
+        option       :  0:0MB, 1:4MB, 2:8MB, 3:16MB, 4:32MB, 5:64MB
+        help         : >
+                       Specify reserved memory size for OS to save OS crash data. The reserved memory address should be same across reset.
+        length       : 0x01
+        value        : 0
+    - EnableCrashMode :
+        name         : Enable Crash Mode
+        option       : $EN_DIS
+        help         : >
+                       Enable/Disable Crash Mode. Boot into Crash OS only when crash mode is enabled.
+        length       : 0x01
+        value        : 0
+    - RpmbKeyProvisioning :
+        name         : RpmbKeyProvisioning
+        type         : Combo
+        option       : $EN_DIS
+        help         : >
+                       Enable or disable Rpmb Key Provisioning
+        length       : 0x01
+        value        : 0
+    - VbtImageId   :
+        name         : Platform VBT table
+        type         : Combo
+        option       : 1:VBT Binary 1, 2:VBT Binary 2
+        help         : >
+                       Specify image ID for desired VBT binary
+        length       : 0x04
+        value        : 1
+    - $ACTION      :
+        page         : OS
+    - CurrentBoot  :
+        name         : Current Boot Option
+        option       :  16:AUTO, 0:0, 1:1, 2:2, 3:3, 4:4, 5:5, 6:6, 7:7, 8:8, 9:9, 10:10, 11:11, 10:10, 11:11, 12:12, 13:13, 14:14, 15:15
+        help         : >
+                       Set the current boot option. It indicates the boot option index (0-15) to be tried first on the boot flow.
+                       AUTO allows platform to set current boot option using platform specific policy.
+        length       : 0x01
+        value        : 0
+
+
+  - $ACTION      :
+      page         : GIO
+
+
+  - $ACTION      :
+      page         : GIO
+  - GPIO_CFG_DATA :
+    - !expand { CFGHDR_TMPL : [ GPIO_CFG_DATA, 0x400, 1, 0 ] }
+    - GPIO_CFG_HDR :
+      - GpioHeaderSize :
+          name         : ''
+          help         : >
+                         Size of structure GPIO_CFG_HDR
+          type         : Reserved
+          length       : 0x01
+          value        : _LENGTH_GPIO_CFG_HDR_
+
+      - GpioBaseTableId :
+          name         : ''
+          help         : >
+                         GPIO base table platform ID
+          type         : Reserved
+          length       : 0x01
+          value        : 0xFF
+
+      - GpioItemSize :
+          name         : ''
+          help         : >
+                         GPIO data size in byte for each GPIO
+          type         : Reserved
+          length       : 0x02
+          value        : 8
+
+      - GpioItemCount :
+          name         : ''
+          help         : >
+                         GPIO count in the table
+          type         : Reserved
+          length       : 0x02
+          value        : (_LENGTH_GPIO_CFG_DATA_ - _LENGTH_GPIO_CFG_HDR_ - 8) / 8
+
+      # Bit start offset within each GPIO entry array to identify a GPIO pin uniquely. EX: GPIO pin id
+      # Offset is 2nd DWORD BIT0 = 1 * 32 + 0 = 32
+      - GpioItemIdBitOff :
+          length       : 0x01
+          value        : 32
+
+      # Bit length within each GPIO entry array to identify a GPIO pin uniquely.
+      # Length is 2nd DWORD BIT0 to BIT15 = 16
+      - GpioItemIdBitLen :
+          length       : 0x01
+          value        : 16
+
+      # Bit offset within each GPIO entry array to indicate SKIP a GPIO programming
+      # Offset is 2nd DWORD BIT31 = 63
+      - GpioItemValidBitOff :
+          length       : 0x01
+          value        : 63
+
+      - GpioItemUnused :
+          length       : 0x01
+          value        : 0
+
+      # Need 1 bit per GPIO. So this mask byte length needs to be at least (GpioNumber + 7) / 8
+      # Padding can be added to let the whole length aligned at DWORD boundary
+      - GpioBaseTableBitMask :
+          length       : 2
+          value        : {0}
+
+      - GpioTableData :
+          length       : 0
+          value        : 0
+
+    - !expand { GPIO_TMPL : [ GPP_A0  ,  0x00000000,  0x00000010 ] }
+    - !expand { GPIO_TMPL : [ GPP_A1  ,  0x40000001,  0x00000011 ] }
+    - !expand { GPIO_TMPL : [ GPP_A2  ,  0x80000002,  0x00000012 ] }
+    - !expand { GPIO_TMPL : [ GPP_A3  ,  0xC0000003,  0x00000013 ] }
+    - !expand { GPIO_TMPL : [ GPP_A4  ,  0x01000004,  0x00000014 ] }
+    - !expand { GPIO_TMPL : [ GPP_A5  ,  0x41000005,  0x00000015 ] }
+    - !expand { GPIO_TMPL : [ GPP_A6  ,  0x81000006,  0x00000016 ] }
+    - !expand { GPIO_TMPL : [ GPP_A7  ,  0xC1000007,  0x00000017 ] }
+
+
+
+
+  - $ACTION      :
+      page         : PLT
+  - CAPSULE_INFO_CFG_DATA :
+    - !expand { CFGHDR_TMPL : [ CAPSULE_INFO_CFG_DATA, 0x080, 0, 0 ] }
+    - DevType      :
+        name         : DevType
+        type         : Combo
+        option       : 0:SATA, 1:SD, 2:EMMC, 3:UFS, 4:SPI, 5:USB, 6:NVME, 7:MAX
+        help         : >
+                       Specify boot device
+        length       : 0x01
+        value        : 0
+    - DevInstance  :
+        name         : Boot Device instance
+        type         : Combo
+        option       : 0:Device 0, 1:Device 1, 2:Device 2, 3:Device 3
+        help         : >
+                       Specify boot device instance when then are multple instances
+        order        : 0000.0000
+        length       : 0x01
+        value        : 0
+    - Reserved     :
+        length       : 0x03
+        value        : 0
+    - HwPart       :
+        name         : Hardware Partition
+        type         : Combo
+        option       : 0:User Partition, 1:Boot Partition 1, 2:Boot Partition 2
+        help         : >
+                       Specify hardware partition number
+        length       : 0x01
+        value        : 5
+    - SwPart       :
+        name         : Software Partition
+        type         : EditNum, DEC, (0,127)
+        help         : >
+                       Specify software partition number
+        length       : 0x01
+        value        : 0
+    - FsType       :
+        name         : File System Type
+        type         : Combo
+        option       : 0:FAT, 1:EXT2, 2:AUTO, 3:RAW
+        help         : >
+                       Image is loaded from file system instead of raw data
+        length       : 0x01
+        value        : 0
+    - FileName     :
+        name         : Capsule File Name
+        type         : EditText
+        help         : >
+                       Specify file name of capsule image  (16-byte max length)
+        length       : 0x10
+        value        : 'FwuImage.bin'
+    - LbaAddr      :
+        name         : LBA address for capsule image)
+        type         : EditNum, HEX, (0,0xFFFFFFFF)
+        help         : >
+                       specify LBA address where to find capsule image
+        length       : 0x04
+        value        : 0
+
+
+
+
+  - $ACTION      :
+      page         : OS
+  - !expand { BOOT_OPTION_TMPL : [ 0 ,   0    ,   0 ,    1   ,   0   ,    0  ,     0 ,     2 , 'iasimage.bin' ] }
+  - !expand { BOOT_OPTION_TMPL : [ 1 ,   0    ,   0 ,    0   ,   0   ,    5  ,     0 ,     2 , 'iasimage.bin' ] }
+  - !expand { BOOT_OPTION_TMPL : [ 2 ,   0    ,   0 ,    6   ,   0   ,    0  ,     0 ,     2 , 'iasimage.bin' ] }
+  - !expand { BOOT_OPTION_TMPL : [ 3 ,   0    ,   0 ,    5   ,   0   ,    0  ,     0 ,     2 , 'iasimage.bin' ] }
