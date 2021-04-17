@@ -1,6 +1,6 @@
 ## @ YamlParser.py
 #
-# copyright (c) 2021, intel corporation. all rights reserved.<BR>
+# Copyright (c) 2021, Intel Corporation. All rights reserved.<BR>
 # SPDX-license-identifier: BSD-2-clause-patent
 #
 ##
